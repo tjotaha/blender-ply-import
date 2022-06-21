@@ -1,0 +1,7 @@
+readply.c
+setup.py
+readply.egg-info/PKG-INFO
+readply.egg-info/SOURCES.txt
+readply.egg-info/dependency_links.txt
+readply.egg-info/top_level.txt
+rply/rply.c

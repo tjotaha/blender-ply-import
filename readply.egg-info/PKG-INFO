@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: readply
+Version: 1.0
+Summary: Load PLY files into NumPy arrays, for faster Blender import
+Home-page: UNKNOWN
+Author: Paul Melis
+Author-email: paul.melis@surfsara.nl
+License: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN

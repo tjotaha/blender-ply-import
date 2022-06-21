@@ -221,6 +221,154 @@ face_cb(p_ply_argument argument)
     return 1;
 }
 
+// vjvalve: temporary variable and proto functions
+#define VariableName(var) #var
+
+typedef struct ply_property{
+    char* name;
+    double* values;
+    unsigned int next_value_index;
+    struct ply_property* next;
+}ply_property;
+
+typedef struct ply_property_array{
+    struct ply_property* start;
+    struct ply_property* end;
+    unsigned int num_vertices;
+}ply_property_array;
+
+const char* key_lookup[] = {"density", "temperature", "pressure"};
+struct ply_property_array ply_p_array;
+
+static int
+init_ply_property_array(struct ply_property_array* ply_p_array, unsigned int num_vertices){
+    ply_p_array->start = NULL;
+    ply_p_array->end = NULL;
+    ply_p_array->num_vertices;
+
+    return 1;
+}
+
+static int
+check_for_existing_property(struct ply_property_array* ply_p_array, char* key){
+    if(ply_p_array->start != NULL){
+        struct ply_property* ply_p = ply_p_array->start;
+
+        while(ply_p != NULL){
+            if(!strcmp(ply_p->name, key)) return 1;
+            ply_p = ply_p->next;
+        }
+    }
+}
+
+static int
+append_ply_property(struct ply_property_array* ply_p_array, char* name){
+    if(check_for_existing_property(ply_p_array, name));
+    struct ply_property* ply_p = malloc(sizeof(ply_property));
+    ply_p->name = malloc(strlen(name) + 1);
+    strcpy(ply_p->name, name);
+
+    ply_p->values = malloc(sizeof(double) * ply_p_array->num_vertices);
+    ply_p->next_value_index = 0;
+    ply_p->next = NULL;
+
+    if(ply_p_array->start == NULL){
+        ply_p_array->start = ply_p;
+        ply_p_array->end = ply_p;
+    }
+    else{
+        ply_p_array->end->next = ply_p;
+        ply_p_array->end = ply_p;
+    }
+    return 1;
+}
+
+static ply_property*
+get_ply_property(struct ply_property_array* ply_p_array, char* name){
+//    int size = ply_p_array->num_vertices;
+    ply_property* ply_p = ply_p_array->start;
+    while(ply_p != NULL){
+        if(!strcmp(ply_p->name, name)) return ply_p;
+        ply_p = ply_p->next;
+    }
+}
+
+static int
+free_ply_property_array(struct ply_property_array* ply_p_array){
+    if(ply_p_array != NULL){
+        struct ply_property* ply_p = ply_p_array-> start;
+        struct ply_property* ply_p_temp = NULL;
+
+        while(ply_p){
+            free(ply_p->values);
+            ply_p_temp = ply_p;
+            ply_p = ply_p->next;
+            free(ply_p_temp);
+        }
+        ply_p_array->start = NULL;
+        ply_p_array->end = NULL;
+    }
+    return 1;
+}
+
+static int
+print_ply_property_array(struct ply_property_array* ply_p_array){
+    struct ply_property* ply_p = ply_p_array->start;
+    printf("\n**Starting print of ply_property_array**\n\n");
+    printf("num_vertices = %d\n\n", ply_p_array->num_vertices);
+
+    if(ply_p == NULL){
+        printf("ply_property_array is empty \n\n");
+        return 0;
+    }
+
+    while(ply_p != NULL){
+       printf("name = %s\n", ply_p->name);
+       int size = ply_p_array->num_vertices;
+       int i;
+       printf("values = ");
+       for(i=0; i<size;i++){
+        printf("%lf", ply_p->values[i]);
+        if(i < size-1) printf(", ");
+        else printf("\n");
+       }
+
+       printf("\n");
+       ply_p = ply_p->next;
+    }
+    printf("**Ending print of ply_property_array**\n\n");
+}
+
+static int
+fill_values(struct ply_property_array* ply_p_array){
+    ply_property* ply_p = ply_p_array->start;
+    int size = ply_p_array->num_vertices;
+
+    if(ply_p == NULL){
+        printf("Empty ply_property_array\n");
+        return 0;
+    }
+
+    while(ply_p != NULL){
+        int i;
+        for(i=0; i<size; i++){
+            ply_p->values[i] = i;
+        }
+    }
+    return 1;
+}
+
+static int
+in_key_lookup(char* name){
+    for(int i=0; key_lookup[i]!= '\0'; i++){
+        if(!strcmp(key, key_lookup[i])){
+            printf("found a string comparison with: %s\n", key_lookup[i]);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // Main Python function
 
 static PyObject*
@@ -304,6 +452,11 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     // XXX check ply_set_read_cb() return values below
 
     prop = ply_get_next_property(vertex_element, NULL);
+
+    init_ply_property_array(&ply_p_array, nvertices);
+    fill_values(&ply_p_array);
+
+    print_ply_property_array(&ply_p_array);
     while (prop)
     {
         ply_get_property_info(prop, &name, &ptype, &plength_type, &pvalue_type);
@@ -352,6 +505,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             ply_set_read_cb(ply, "vertex", "u", vertex_texcoord_cb, NULL, 0);
             ply_set_read_cb(ply, "vertex", "v", vertex_texcoord_cb, NULL, 1);
         }
+        else if()
 
         prop = ply_get_next_property(vertex_element, prop);
     }
