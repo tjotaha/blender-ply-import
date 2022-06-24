@@ -235,6 +235,7 @@ typedef struct ply_property_array{
     struct ply_property* start;
     struct ply_property* end;
     unsigned int num_vertices;
+    unsigned int prop_count;
 }ply_property_array;
 
 const char* key_lookup[] = {"density", "temperature", "pressure"};
@@ -244,7 +245,8 @@ static int
 init_ply_property_array(struct ply_property_array* ply_p_array, unsigned int num_vertices){
     ply_p_array->start = NULL;
     ply_p_array->end = NULL;
-    ply_p_array->num_vertices;
+    ply_p_array->num_vertices = num_vertices;
+    ply_p_array->prop_count = 0;
 
     return 1;
 }
@@ -280,6 +282,8 @@ append_ply_property(struct ply_property_array* ply_p_array, char* name){
         ply_p_array->end->next = ply_p;
         ply_p_array->end = ply_p;
     }
+    ply_p_array->prop_count++;
+
     return 1;
 }
 
@@ -299,7 +303,7 @@ free_ply_property_array(struct ply_property_array* ply_p_array){
         struct ply_property* ply_p = ply_p_array-> start;
         struct ply_property* ply_p_temp = NULL;
 
-        while(ply_p){
+        while(ply_p != NULL){
             free(ply_p->values);
             ply_p_temp = ply_p;
             ply_p = ply_p->next;
@@ -354,6 +358,7 @@ fill_values(struct ply_property_array* ply_p_array){
         for(i=0; i<size; i++){
             ply_p->values[i] = i;
         }
+        ply_p = ply_p->next;
     }
     return 1;
 }
@@ -361,12 +366,25 @@ fill_values(struct ply_property_array* ply_p_array){
 static int
 in_key_lookup(char* name){
     for(int i=0; key_lookup[i]!= '\0'; i++){
-        if(!strcmp(key, key_lookup[i])){
+        if(!strcmp(name, key_lookup[i])){
             printf("found a string comparison with: %s\n", key_lookup[i]);
             return 1;
         }
     }
     return 0;
+}
+
+static int
+property_double_cb(p_ply_argument argument)
+{
+//    struct ply_property* ply_p = (struct ply_property*)argument->pdata;
+//    ply_p->values[ply_p->next_value_index] = ply_get_argument_value(argument);
+//    ply_p->next_value_index++;
+
+//    vertices[next_vertex_element_index] = ply_get_argument_value(argument);
+//    next_vertex_element_index++;
+
+    return 1;
 }
 
 // Main Python function
@@ -452,11 +470,13 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     // XXX check ply_set_read_cb() return values below
 
     prop = ply_get_next_property(vertex_element, NULL);
+    int prop_count = 0;
 
+    printf("number of vertices: %d\n", nvertices);
     init_ply_property_array(&ply_p_array, nvertices);
-    fill_values(&ply_p_array);
+//    fill_values(&ply_p_array);
 
-    print_ply_property_array(&ply_p_array);
+//    print_ply_property_array(&ply_p_array);
     while (prop)
     {
         ply_get_property_info(prop, &name, &ptype, &plength_type, &pvalue_type);
@@ -505,10 +525,22 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             ply_set_read_cb(ply, "vertex", "u", vertex_texcoord_cb, NULL, 0);
             ply_set_read_cb(ply, "vertex", "v", vertex_texcoord_cb, NULL, 1);
         }
-        else if()
+        else if(in_key_lookup(name)){
+            append_ply_property(&ply_p_array, name);
+            printf("%s in key_lookup\n", name);
+            printf("last value in array: %s\n", ply_p_array.end->name);
+
+            printf("type testing: %d\n", ply_p_array.end);
+//            ply_set_read_cb(ply, "vertex", name, property_double_cb, ply_p_array.end, 0);
+        }
 
         prop = ply_get_next_property(vertex_element, prop);
     }
+
+    /*****************testing******************/
+    fill_values(&ply_p_array);
+    print_ply_property_array(&ply_p_array);
+    /******************************************/
 
     // Allocate memory and initialize some values
 
@@ -546,6 +578,8 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
         vertex_texcoords = (float*) malloc(sizeof(float)*nvertices*2);
         next_vertex_texcoord_element_index = 0;
     }
+    //if(have_other_properties) is not needed because we account for the creation of the property list and
+    //callbacks when encountering and finding a property that is in our key_lookup.
 
     // Let rply process the file using the callbacks we set above
 
@@ -568,6 +602,8 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             free(vertex_colors);
         if (have_vertex_texcoords)
             free(vertex_texcoords);
+
+        free_ply_property_array(&ply_p_array);
 
         return NULL;
     }
@@ -723,6 +759,15 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
                     
         PyDict_SetItemString(result, "texture_coordinates", np_vtexcoords);
     }
+
+//    if (ply_p_array.start != NULL)
+//    {
+//        PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, np_vertices_dims, NPY_FLOAT, vertex_normals);
+//        _set_base_object(arr, vertex_normals, "vertex_normals");
+//        PyObject *np_vnormals = (PyObject*) arr;
+//
+//        PyDict_SetItemString(result, "normals", np_vnormals);
+//    }
 
     // Return the stuff! 
     

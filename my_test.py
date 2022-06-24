@@ -39,5 +39,7 @@ p = readply.readply(fname)
 t1 = time.time()
 print(p.keys())
 #print('PLY file read by readply() in %.3fs' % (t1-t0))
-#print('%d vertices, %d faces' % (p['num_vertices'], p['loop_start'].shape[0]))
+print('%d vertices, %d faces' % (p['num_vertices'], p['loop_start'].shape[0]))
+print('vertices: {}\n'.format(p['vertices'].shape))
+print('vertex_colors.shape: {0}\n'.format(p['vertex_colors'].shape))
 
