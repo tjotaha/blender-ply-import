@@ -377,9 +377,9 @@ in_key_lookup(char* name){
 static int
 property_double_cb(p_ply_argument argument)
 {
-//    struct ply_property* ply_p = (struct ply_property*)argument->pdata;
-//    ply_p->values[ply_p->next_value_index] = ply_get_argument_value(argument);
-//    ply_p->next_value_index++;
+    struct ply_property* ply_p = (struct ply_property*)argument->pdata;
+    ply_p->values[ply_p->next_value_index] = ply_get_argument_value(argument);
+    ply_p->next_value_index++;
 
 //    vertices[next_vertex_element_index] = ply_get_argument_value(argument);
 //    next_vertex_element_index++;
@@ -530,8 +530,8 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             printf("%s in key_lookup\n", name);
             printf("last value in array: %s\n", ply_p_array.end->name);
 
-            printf("type testing: %d\n", ply_p_array.end);
-//            ply_set_read_cb(ply, "vertex", name, property_double_cb, ply_p_array.end, 0);
+//            printf("type testing: %d\n", ply_p_array.end);
+            ply_set_read_cb(ply, "vertex", name, property_double_cb, ply_p_array.end, 0);
         }
 
         prop = ply_get_next_property(vertex_element, prop);
