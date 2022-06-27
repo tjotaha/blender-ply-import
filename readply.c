@@ -252,7 +252,7 @@ init_ply_property_array(struct ply_property_array* ply_p_array, unsigned int num
 }
 
 static int
-check_for_existing_property(struct ply_property_array* ply_p_array, char* key){
+check_for_existing_property(struct ply_property_array* ply_p_array, const char* key){
     if(ply_p_array->start != NULL){
         struct ply_property* ply_p = ply_p_array->start;
 
@@ -264,7 +264,7 @@ check_for_existing_property(struct ply_property_array* ply_p_array, char* key){
 }
 
 static int
-append_ply_property(struct ply_property_array* ply_p_array, char* name){
+append_ply_property(struct ply_property_array* ply_p_array, const char* name){
     if(check_for_existing_property(ply_p_array, name));
     struct ply_property* ply_p = malloc(sizeof(ply_property));
     ply_p->name = malloc(strlen(name) + 1);
@@ -315,7 +315,7 @@ free_ply_property_array(struct ply_property_array* ply_p_array){
     return 1;
 }
 
-static int
+static void
 print_ply_property_array(struct ply_property_array* ply_p_array){
     struct ply_property* ply_p = ply_p_array->start;
     printf("\n**Starting print of ply_property_array**\n\n");
@@ -323,7 +323,7 @@ print_ply_property_array(struct ply_property_array* ply_p_array){
 
     if(ply_p == NULL){
         printf("ply_property_array is empty \n\n");
-        return 0;
+        return;
     }
 
     while(ply_p != NULL){
@@ -364,8 +364,9 @@ fill_values(struct ply_property_array* ply_p_array){
 }
 
 static int
-in_key_lookup(char* name){
-    for(int i=0; key_lookup[i]!= '\0'; i++){
+in_key_lookup(const char* name){
+    int i;
+    for(i=0; key_lookup[i]!= '\0'; i++){
         if(!strcmp(name, key_lookup[i])){
             printf("found a string comparison with: %s\n", key_lookup[i]);
             return 1;
@@ -377,14 +378,11 @@ in_key_lookup(char* name){
 static int
 property_double_cb(p_ply_argument argument)
 {
-    struct ply_property* ply_p = (struct ply_property*)argument->pdata;
+    ply_property* ply_p;
+    int rc = ply_get_argument_user_data(argument, (void**) &ply_p, NULL);
     ply_p->values[ply_p->next_value_index] = ply_get_argument_value(argument);
     ply_p->next_value_index++;
-
-//    vertices[next_vertex_element_index] = ply_get_argument_value(argument);
-//    next_vertex_element_index++;
-
-    return 1;
+    return rc;
 }
 
 // Main Python function
@@ -472,7 +470,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     prop = ply_get_next_property(vertex_element, NULL);
     int prop_count = 0;
 
-    printf("number of vertices: %d\n", nvertices);
+    printf("number of vertices: %ld\n", nvertices);
     init_ply_property_array(&ply_p_array, nvertices);
 //    fill_values(&ply_p_array);
 
