@@ -316,6 +316,22 @@ free_ply_property_array(struct ply_property_array* ply_p_array){
 }
 
 static void
+print_ply_property(struct ply_property* ply_p, unsigned int size){
+    printf("name = %s\n", ply_p->name);
+//    int size = ply_p_array->num_vertices;
+//    int i;
+    if(size){
+        printf("values = ");
+        for(int i=0; i<size;i++){
+            printf("%lf", ply_p->values[i]);
+            if(i < size-1) printf(", ");
+            else printf("\n");
+        }
+    }
+
+}
+
+static void
 print_ply_property_array(struct ply_property_array* ply_p_array){
     struct ply_property* ply_p = ply_p_array->start;
     printf("\n**Starting print of ply_property_array**\n\n");
@@ -327,21 +343,23 @@ print_ply_property_array(struct ply_property_array* ply_p_array){
     }
 
     while(ply_p != NULL){
-       printf("name = %s\n", ply_p->name);
-       int size = ply_p_array->num_vertices;
-       int i;
-       printf("values = ");
-       for(i=0; i<size;i++){
-        printf("%lf", ply_p->values[i]);
-        if(i < size-1) printf(", ");
-        else printf("\n");
-       }
+        print_ply_property(ply_p, ply_p_array->num_vertices);
+//       printf("name = %s\n", ply_p->name);
+//       int size = ply_p_array->num_vertices;
+//       int i;
+//       printf("values = ");
+//       for(i=0; i<size;i++){
+//        printf("%lf", ply_p->values[i]);
+//        if(i < size-1) printf(", ");
+//        else printf("\n");
+//       }
 
        printf("\n");
        ply_p = ply_p->next;
     }
     printf("**Ending print of ply_property_array**\n\n");
 }
+
 
 static int
 fill_values(struct ply_property_array* ply_p_array){
@@ -667,7 +685,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     if (have_vertex_colors)
     {
         PyObject *np_vcolors;
-                
+
         if (vertex_values_per_loop)
         {
             // Convert list of per-vertex RGB colors to Blender-style 
@@ -758,14 +776,25 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
         PyDict_SetItemString(result, "texture_coordinates", np_vtexcoords);
     }
 
-//    if (ply_p_array.start != NULL)
-//    {
-//        PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, np_vertices_dims, NPY_FLOAT, vertex_normals);
-//        _set_base_object(arr, vertex_normals, "vertex_normals");
-//        PyObject *np_vnormals = (PyObject*) arr;
-//
-//        PyDict_SetItemString(result, "normals", np_vnormals);
-//    }
+    if (ply_p_array.start != NULL)
+    {
+        printf("In line %d\n", __LINE__);
+        ply_property* ply_p = ply_p_array.start;
+        while(ply_p){
+//            print_ply_property(ply_p, NULL);
+            PyObject *np_prop;
+            const int n = ply_p->next_value_index;
+            npy_intp    dims[1] = { n };
+            PyArrayObject* arr_temp = (PyArrayObject*) PyArray_SimpleNewFromData(1, dims, NPY_FLOAT, ply_p->values);
+            _set_base_object(arr_temp, ply_p->values, ply_p->name);
+            np_prop = (PyObject*) arr_temp;
+            PyDict_SetItemString(result, ply_p->name, np_prop);
+
+            ply_p = ply_p->next;
+
+        }
+        free_ply_property_array(&ply_p_array);
+    }
 
     // Return the stuff! 
     
