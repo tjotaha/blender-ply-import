@@ -323,9 +323,9 @@ print_ply_property(struct ply_property* ply_p, unsigned int size){
     if(size){
         printf("values = ");
         for(int i=0; i<size;i++){
-            printf("%lf", ply_p->values[i]);
-            if(i < size-1) printf(", ");
-            else printf("\n");
+            printf("[%d]: %lf\n", i, ply_p->values[i]);
+//            if(i < size-1) printf(", ");
+//            else printf("\n");
         }
     }
 
@@ -397,8 +397,11 @@ static int
 property_double_cb(p_ply_argument argument)
 {
     ply_property* ply_p;
+//    ply_property** ply_p_star = &ply_p;
     int rc = ply_get_argument_user_data(argument, (void**) &ply_p, NULL);
+//    int rc = ply_get_argument_user_data(argument, (void**) ply_p_star, NULL);
     ply_p->values[ply_p->next_value_index] = ply_get_argument_value(argument);
+    printf("callback value %f\tindex: %d\n", ply_p->values[ply_p->next_value_index], ply_p->next_value_index);
     ply_p->next_value_index++;
     return rc;
 }
@@ -457,7 +460,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     assert(face_element && "Don't have a face element");
 
     // Set vertex and face property callbacks
-    
+
     long nvertices, nfaces;
 
     nvertices = ply_set_read_cb(ply, "vertex", "x", vertex_cb, NULL, 0);
@@ -482,7 +485,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
 
     p_ply_property  prop;
     e_ply_type      ptype, plength_type, pvalue_type;
-    
+
     // XXX check ply_set_read_cb() return values below
 
     prop = ply_get_next_property(vertex_element, NULL);
@@ -556,6 +559,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     /*****************testing******************/
     fill_values(&ply_p_array);
     print_ply_property_array(&ply_p_array);
+
     /******************************************/
 
     // Allocate memory and initialize some values
@@ -567,13 +571,13 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     // quads. For a pure-triangle mesh this will overallocate by 1/4th,
     // but for a mesh with general n-gons we might have to reallocate
     // later on.
-    
+
     next_face_offset = 0;
     next_face_element_index = 0;
-    
+
     face_indices_size = nfaces > 128 ? nfaces*4 : 512;
     faces = (uint32_t*) malloc(sizeof(uint32_t)*face_indices_size);
-    
+
     loop_start = (uint32_t*) malloc(sizeof(uint32_t)*nfaces);
     loop_total = (uint32_t*) malloc(sizeof(uint32_t)*nfaces);
 
@@ -604,7 +608,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     if (!ply_read(ply))
     {
         // Failed!
-        
+
         PyErr_SetString(PyExc_IOError, "Could not read PLY data");
 
         ply_close(ply);
@@ -631,45 +635,45 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     //
     // Create return value
     //
-    
-    PyObject    *result = PyDict_New();
-    
 
-#if PY_MAJOR_VERSION == 2    
+    PyObject    *result = PyDict_New();
+
+
+#if PY_MAJOR_VERSION == 2
     PyDict_SetItemString(result, "num_vertices", PyInt_FromLong(nvertices));
-    PyDict_SetItemString(result, "num_faces", PyInt_FromLong(nfaces));        
+    PyDict_SetItemString(result, "num_faces", PyInt_FromLong(nfaces));
 #else
     PyDict_SetItemString(result, "num_vertices", PyLong_FromLong(nvertices));
-    PyDict_SetItemString(result, "num_faces", PyLong_FromLong(nfaces));        
+    PyDict_SetItemString(result, "num_faces", PyLong_FromLong(nfaces));
 #endif
-    
+
     // Vertices
-    
+
     npy_intp np_vertices_dims[1] = { nvertices*3 };
     // XXX check for NULL in return of PyArray_SimpleNewFromData()
-    PyObject *np_vertices = PyArray_SimpleNewFromData(1, np_vertices_dims, NPY_FLOAT, vertices);    
+    PyObject *np_vertices = PyArray_SimpleNewFromData(1, np_vertices_dims, NPY_FLOAT, vertices);
     _set_base_object((PyArrayObject*)np_vertices, vertices, "vertices");
-    
-    PyDict_SetItemString(result, "vertices", (PyObject*)np_vertices);    
+
+    PyDict_SetItemString(result, "vertices", (PyObject*)np_vertices);
 
     // Faces
-    
+
     // Vertex indices
     npy_intp np_faces_dims[1] = { next_face_element_index };
     PyObject *np_faces = PyArray_SimpleNewFromData(1, np_faces_dims, NPY_UINT32, faces);
     _set_base_object((PyArrayObject*)np_faces, faces, "faces");
     PyDict_SetItemString(result, "faces", np_faces);
-    
+
     // Loop starts
     npy_intp np_loop_dims[1] = { nfaces };
     PyObject *np_loop_start = PyArray_SimpleNewFromData(1, np_loop_dims, NPY_UINT32, loop_start);
-    _set_base_object((PyArrayObject*)np_loop_start, loop_start, "loop_start");    
-    PyDict_SetItemString(result, "loop_start", np_loop_start);    
+    _set_base_object((PyArrayObject*)np_loop_start, loop_start, "loop_start");
+    PyDict_SetItemString(result, "loop_start", np_loop_start);
 
     // Loop lengths
     PyObject *np_loop_total = PyArray_SimpleNewFromData(1, np_loop_dims, NPY_UINT32, loop_total);
-    _set_base_object((PyArrayObject*)np_loop_total, loop_total, "loop_total");    
-    PyDict_SetItemString(result, "loop_length", np_loop_total);    
+    _set_base_object((PyArrayObject*)np_loop_total, loop_total, "loop_total");
+    PyDict_SetItemString(result, "loop_length", np_loop_total);
 
     // Optional per-vertex arrays
 
@@ -678,7 +682,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
         PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, np_vertices_dims, NPY_FLOAT, vertex_normals);
         _set_base_object(arr, vertex_normals, "vertex_normals");
         PyObject *np_vnormals = (PyObject*) arr;
-        
+
         PyDict_SetItemString(result, "normals", np_vnormals);
     }
 
@@ -686,10 +690,13 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     {
         PyObject *np_vcolors;
 
+        for(int i = 0; i<nvertices * 3; i++){
+            printf("vertex_colors[%d]: %f\n", i, vertex_colors[i] * 255);
+        }
         if (vertex_values_per_loop)
         {
-            // Convert list of per-vertex RGB colors to Blender-style 
-            // per-vertex-per-face-loop RGBA colors 
+            // Convert list of per-vertex RGB colors to Blender-style
+            // per-vertex-per-face-loop RGBA colors
 
             const int n = 4*next_face_element_index;
 
@@ -697,7 +704,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             float   *vcol2color = vcol2;
             float   *col;
             int     vi;
-            
+
             for (int fi = 0; fi < next_face_element_index; fi++)
             {
                 vi = faces[fi];
@@ -712,31 +719,31 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             }
 
             free(vertex_colors);
-            
+
             npy_intp    dims[1] = { n };
-            PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, dims, NPY_FLOAT, vcol2);        
+            PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, dims, NPY_FLOAT, vcol2);
             _set_base_object(arr, vcol2, "vertex_colors");
-            np_vcolors = (PyObject*) arr;            
+            np_vcolors = (PyObject*) arr;
         }
         else
         {
             // Per-vertex RGB colors
-            PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, np_vertices_dims, NPY_FLOAT, vertex_colors);
+            PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, np_vertices_dims, NPY_FLOAT, (void*) vertex_colors);
             _set_base_object(arr, vertex_colors, "vertex_colors");
-            np_vcolors = (PyObject*) arr;                        
+            np_vcolors = (PyObject*) arr;
         }
-        
+
         PyDict_SetItemString(result, "vertex_colors", np_vcolors);
     }
 
     if (have_vertex_texcoords)
     {
         PyObject *np_vtexcoords;
-                
+
         if (vertex_values_per_loop)
         {
-            // Convert list of per-vertex UV coordinates to Blender-style 
-            // per-vertex-per-face-loop UV coordinates 
+            // Convert list of per-vertex UV coordinates to Blender-style
+            // per-vertex-per-face-loop UV coordinates
 
             const int n = 2*next_face_element_index;
 
@@ -744,7 +751,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             float   *uv2value = uv2;
             float   *uv;
             int     vi;
-            
+
             for (int fi = 0; fi < next_face_element_index; fi++)
             {
                 vi = faces[fi];
@@ -757,22 +764,23 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             }
 
             free(vertex_texcoords);
-            
+
             npy_intp    dims[1] = { n };
-            PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, dims, NPY_FLOAT, uv2);        
+            PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, dims, NPY_FLOAT, uv2);
             _set_base_object(arr, uv2, "texture_coordinates");
-            np_vtexcoords = (PyObject*) arr;            
+            np_vtexcoords = (PyObject*) arr;
         }
         else
         {
             // Per-vertex UV coordinates
             npy_intp    np_vertex_texcoords_dims[1] = { nvertices*2 };
 
+//            PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, np_vertex_texcoords_dims, NPY_FLOAT, vertex_texcoords);
             PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, np_vertex_texcoords_dims, NPY_FLOAT, vertex_texcoords);
             _set_base_object(arr, vertex_texcoords, "texture_coordinates");
-            np_vtexcoords = (PyObject*) arr;    
+            np_vtexcoords = (PyObject*) arr;
         }
-                    
+
         PyDict_SetItemString(result, "texture_coordinates", np_vtexcoords);
     }
 
@@ -780,12 +788,27 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     {
         printf("In line %d\n", __LINE__);
         ply_property* ply_p = ply_p_array.start;
+        print_ply_property_array(&ply_p_array);
+
+        int testflag = 1;
         while(ply_p){
-//            print_ply_property(ply_p, NULL);
+
             PyObject *np_prop;
-            const int n = ply_p->next_value_index;
+//            const int n = ply_p->next_value_index;
+            const int n = ply_p_array.num_vertices;
             npy_intp    dims[1] = { n };
-            PyArrayObject* arr_temp = (PyArrayObject*) PyArray_SimpleNewFromData(1, dims, NPY_FLOAT, ply_p->values);
+//            print_ply_property(ply_p, n);
+            PyObject* arr_temp = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, ply_p->values);
+
+            if(testflag){
+                FILE *fp;
+                fp = fopen("text.txt", "w+");
+                PyArray_ToFile(arr_temp, fp, "\n", "");
+                fclose(fp);
+                testflag = 0;
+            }
+
+//            printf("[0]: %lf\n", (float)arr_temp->data[0]);
             _set_base_object(arr_temp, ply_p->values, ply_p->name);
             np_prop = (PyObject*) arr_temp;
             PyDict_SetItemString(result, ply_p->name, np_prop);
@@ -796,15 +819,15 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
         free_ply_property_array(&ply_p_array);
     }
 
-    // Return the stuff! 
-    
+    // Return the stuff!
+
     return result;
 }
 
 // Python module stuff
 
 static char readply_func_doc[] = 
-"readply(plyfile, vertex_values_per_loop=True)\n\
+"readply(plyfile, vertex_values_per_loop=False)\n\
 \n\
 Reads a 3D model from a PLY file.\n\
 \n\
