@@ -401,7 +401,7 @@ property_double_cb(p_ply_argument argument)
     int rc = ply_get_argument_user_data(argument, (void**) &ply_p, NULL);
 //    int rc = ply_get_argument_user_data(argument, (void**) ply_p_star, NULL);
     ply_p->values[ply_p->next_value_index] = ply_get_argument_value(argument);
-    printf("callback value %f\tindex: %d\n", ply_p->values[ply_p->next_value_index], ply_p->next_value_index);
+//    printf("callback value %f\tindex: %d\n", ply_p->values[ply_p->next_value_index], ply_p->next_value_index);
     ply_p->next_value_index++;
     return rc;
 }
@@ -418,6 +418,8 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|i", kwlist, &fname, &vertex_values_per_loop))
         return NULL;
+
+    print(kwlist);
     
     // Open PLY file
 
@@ -546,8 +548,8 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
         }
         else if(in_key_lookup(name)){
             append_ply_property(&ply_p_array, name);
-            printf("%s in key_lookup\n", name);
-            printf("last value in array: %s\n", ply_p_array.end->name);
+//            printf("%s in key_lookup\n", name);
+//            printf("last value in array: %s\n", ply_p_array.end->name);
 
 //            printf("type testing: %d\n", ply_p_array.end);
             ply_set_read_cb(ply, "vertex", name, property_double_cb, ply_p_array.end, 0);
@@ -558,7 +560,9 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
 
     /*****************testing******************/
     fill_values(&ply_p_array);
-    print_ply_property_array(&ply_p_array);
+//    print_ply_property_array(&ply_p_array);
+//    printf("************FLAG******************");
+//    printf("In line %d\n", __LINE__);
 
     /******************************************/
 
@@ -690,9 +694,9 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     {
         PyObject *np_vcolors;
 
-        for(int i = 0; i<nvertices * 3; i++){
-            printf("vertex_colors[%d]: %f\n", i, vertex_colors[i] * 255);
-        }
+//        for(int i = 0; i<nvertices * 3; i++){
+//            printf("vertex_colors[%d]: %f\n", i, vertex_colors[i] * 255);
+//        }
         if (vertex_values_per_loop)
         {
             // Convert list of per-vertex RGB colors to Blender-style
@@ -788,7 +792,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     {
         printf("In line %d\n", __LINE__);
         ply_property* ply_p = ply_p_array.start;
-        print_ply_property_array(&ply_p_array);
+//        print_ply_property_array(&ply_p_array);
 
         int testflag = 1;
         while(ply_p){
@@ -797,16 +801,16 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
 //            const int n = ply_p->next_value_index;
             const int n = ply_p_array.num_vertices;
             npy_intp    dims[1] = { n };
-//            print_ply_property(ply_p, n);
+            print_ply_property(ply_p, n);
             PyObject* arr_temp = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, ply_p->values);
 
-            if(testflag){
-                FILE *fp;
-                fp = fopen("text.txt", "w+");
-                PyArray_ToFile(arr_temp, fp, "\n", "");
-                fclose(fp);
-                testflag = 0;
-            }
+//            if(testflag){
+//                FILE *fp;
+//                fp = fopen("text.txt", "w+");
+//                PyArray_ToFile(arr_temp, fp, "\n", "");
+//                fclose(fp);
+//                testflag = 0;
+//            }
 
 //            printf("[0]: %lf\n", (float)arr_temp->data[0]);
             _set_base_object(arr_temp, ply_p->values, ply_p->name);
@@ -820,6 +824,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     }
 
     // Return the stuff!
+
 
     return result;
 }

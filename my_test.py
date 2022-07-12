@@ -27,7 +27,11 @@ def print_vert_attr(p):
         print("vertex %d" % i)
         print('vertex coord: %d, %d, %d' % (p['vertices'][i*3], p['vertices'][i*3+1], p['vertices'][i*3+2]))
         print('rgb: %d, %d, %d' % (p['vertex_colors'][i*3] * 255, p['vertex_colors'][i*3+1] * 255, p['vertex_colors'][i*3+2] * 255))
-        print('density, temperature, pressure: %.1f, %.1f, %.1f' % (p['density'][i], p['temperature'][i], p['pressure'][i]))
+        try:
+            print('density, temperature, pressure: %.1f, %.1f, %.1f' % (p['density'][i], p['temperature'][i], p['pressure'][i]))
+        except:
+            print('file doesn\'t have density, temperature, or pressure parameters')
+        
         print("\n")
 
 print('Using readply module: %s' % readply.__file__)
@@ -42,6 +46,8 @@ except ValueError as e:
     args = []
 
 #print("current directory: %r\n" % os.getcwd())
+#fname = 'colored_monkey.ply'
+#path = 'C:\\Users\\vjvalve\\Documents\\blender-ply-import\\test\\'
 fname = 'small_wavelet_1_extra_properties.ply'
 path = 'C:\\Users\\vjvalve\\Documents\\blender-ply-import\\'
 fpath = path+fname
@@ -67,7 +73,7 @@ print('vertices: {}\n'.format(p['vertices']))
 
 # print('density: {}\n'.format(p['density']))
 
-print_vert_attr(p)
+#print_vert_attr(p)
 
 if in_blender:
     # Create a mesh + object using the vertex and face data in the numpy arrays
@@ -95,6 +101,14 @@ if in_blender:
     if 'texture_coordinates' in p:
         uv_layer = mesh.uv_layers.new(name='default')
         uv_layer.data.foreach_set('uv', p['texture_coordinates'])
+        
+    if 'density' in p:
+        density_layer = mesh.vertex_layers_float.new(name='density')
+        density_layer.data.foreach_set('value', p['density'])
+        
+        for i in range(len(density_layer.data)):
+            print("density[{0}]: {1}".format(i, density_layer.data[i].value))
+        
 
     mesh.validate()
     mesh.update()
