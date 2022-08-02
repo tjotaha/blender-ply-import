@@ -1,0 +1,31 @@
+Blender array mesh array's explained:
+
+num_vertices: number of vertices in mesh (int)
+num_faces: number of faces in mesh (int)
+
+vertices: position data of each vertex (x, y, z)
+
+faces: vertex indices used to make a face (flat array: [n (number of vertices to make face)| v1, v2,..., vn])
+
+loop_start: flat array that keeps track of how which index on "faces" array to start the face (first component of face definition in ply)
+
+loop_length: flat array the keeps track of how many vertices make up face[i] (ex: face[i]:[va, vb, vc], loop_length[i] = 3)
+
+vertex_colors: registered in a per-vertex-per-face format 
+*********EXAMPLE********* 
+rgb:
+v[0] = (90, 120, 228)
+v[1] = (129, 164, 152)
+v[2] = (59, 76, 192)
+v[3] = (153 185, 255)
+
+faces:
+3| 0, 1, 2
+3| 1, 3, 2
+3| 3, 0, 2
+
+vertex_colors:
+((90, 120, 228), (129, 164, 152), (59, 76, 192))
+((129, 164, 152), (153 185, 255), (59, 76, 192))
+((153 185, 255), (90, 120, 228), (59, 76, 192))
+->(90, 120, 228, 129, 164, 152, 59, 76, 192, 129, 164, 152, 153 185, 255, 59, 76, 192, 153 185, 255, 90, 120, 228, 59, 76, 192)

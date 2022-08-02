@@ -1,3 +1,4 @@
+LICENSE
 readply.c
 setup.py
 readply.egg-info/PKG-INFO

@@ -343,7 +343,7 @@ print_ply_property_array(struct ply_property_array* ply_p_array){
     }
 
     while(ply_p != NULL){
-        print_ply_property(ply_p, ply_p_array->num_vertices);
+//        print_ply_property(ply_p, ply_p_array->num_vertices);
 //       printf("name = %s\n", ply_p->name);
 //       int size = ply_p_array->num_vertices;
 //       int i;
@@ -419,7 +419,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "s|i", kwlist, &fname, &vertex_values_per_loop))
         return NULL;
 
-    print(kwlist);
+//    printf(kwlist);
     
     // Open PLY file
 
@@ -694,8 +694,8 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
     {
         PyObject *np_vcolors;
 
-//        for(int i = 0; i<nvertices * 3; i++){
-//            printf("vertex_colors[%d]: %f\n", i, vertex_colors[i] * 255);
+//        for(int i = 0; i<nvertices * 3; i+=3){
+//            printf("vertex_colors[%d, %d, %d]: (%d, %d, %d)\n", i, i+1, i+2, (int)(vertex_colors[i] * 255), (int)(vertex_colors[i+1] * 255), (int)(vertex_colors[i+2] * 255));
 //        }
         if (vertex_values_per_loop)
         {
@@ -703,7 +703,6 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             // per-vertex-per-face-loop RGBA colors
 
             const int n = 4*next_face_element_index;
-
             float   *vcol2 = (float*) malloc(n*sizeof(float));
             float   *vcol2color = vcol2;
             float   *col;
@@ -731,6 +730,8 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
         }
         else
         {
+            printf("vertex values per loop false\n");
+
             // Per-vertex RGB colors
             PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, np_vertices_dims, NPY_FLOAT, (void*) vertex_colors);
             _set_base_object(arr, vertex_colors, "vertex_colors");
@@ -801,7 +802,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
 //            const int n = ply_p->next_value_index;
             const int n = ply_p_array.num_vertices;
             npy_intp    dims[1] = { n };
-            print_ply_property(ply_p, n);
+//            print_ply_property(ply_p, n);
             PyObject* arr_temp = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, ply_p->values);
 
 //            if(testflag){

@@ -26,13 +26,35 @@ def print_vert_attr(p):
     for i in range(p['num_vertices']):
         print("vertex %d" % i)
         print('vertex coord: %d, %d, %d' % (p['vertices'][i*3], p['vertices'][i*3+1], p['vertices'][i*3+2]))
-        print('rgb: %d, %d, %d' % (p['vertex_colors'][i*3] * 255, p['vertex_colors'][i*3+1] * 255, p['vertex_colors'][i*3+2] * 255))
+        # print('rgb: %d, %d, %d' % (p['vertex_colors'][i*3] * 255, p['vertex_colors'][i*3+1] * 255, p['vertex_colors'][i*3+2] * 255))
         try:
             print('density, temperature, pressure: %.1f, %.1f, %.1f' % (p['density'][i], p['temperature'][i], p['pressure'][i]))
         except:
             print('file doesn\'t have density, temperature, or pressure parameters')
         
         print("\n")
+
+def print_vertex_colors(p):
+    i = 0
+    while i < len(p['vertex_colors']):
+        print("rgba: p['vertex_colors'][%d, %d, %d ,%d]: %d, %d, %d, %d\n" % (i, i+1, i+2, i+3,
+                                                                              p['vertex_colors'][i] * 255,
+                                                                              p['vertex_colors'][i+1] * 255,
+                                                                              p['vertex_colors'][i+2] * 255,
+                                                                              p['vertex_colors'][i+3]))
+        i += 4
+
+def print_loop_start(p):
+    for i in range(len(p['loop_start'])):
+        print("loop_start[%d]: %d\n" % (i, p['loop_start'][i]))
+
+def print_loop_length(p):
+    for i in range(len(p['loop_length'])):
+        print("loop_length[%d]: %d\n" % (i, p['loop_length'][i]))
+
+def print_faces(p):
+    for i in range(len(p['faces'])):
+        print("faces[%d]: %d\n" % (i, p['faces'][i]))
 
 print('Using readply module: %s' % readply.__file__)
 
@@ -45,9 +67,9 @@ try:
 except ValueError as e:
     args = []
 
-#print("current directory: %r\n" % os.getcwd())
-#fname = 'colored_monkey.ply'
-#path = 'C:\\Users\\vjvalve\\Documents\\blender-ply-import\\test\\'
+# print("current directory: %r\n" % os.getcwd())
+# fname = 'colored_monkey.ply'
+# path = 'C:\\Users\\vjvalve\\Documents\\blender-ply-import\\test\\'
 fname = 'small_wavelet_1_extra_properties.ply'
 path = 'C:\\Users\\vjvalve\\Documents\\blender-ply-import\\'
 fpath = path+fname
@@ -70,6 +92,14 @@ print(p.keys())
 print('%d vertices, %d faces' % (p['num_vertices'], p['loop_start'].shape[0]))
 print('vertices: {}\n'.format(p['vertices']))
 # print('vertex_colors.shape: {0}\n'.format(p['vertex_colors'].shape))
+print("vertex_colors length: %d" % (len(p['vertex_colors'])))
+# print_vertex_colors(p)
+
+# print_loop_start(p)
+#
+# print_loop_length(p)
+
+# print_faces(p)
 
 # print('density: {}\n'.format(p['density']))
 
@@ -105,9 +135,30 @@ if in_blender:
     if 'density' in p:
         density_layer = mesh.vertex_layers_float.new(name='density')
         density_layer.data.foreach_set('value', p['density'])
-        
-        for i in range(len(density_layer.data)):
-            print("density[{0}]: {1}".format(i, density_layer.data[i].value))
+
+        test_co_w = [1.0, 1.0, 1.0, 1.0]
+        test_co_b = [0.0, 0.0, 0.0, 1.0]
+
+        co_layer_density = []
+        max_d = max(p['density'])
+        min_d = min(p['density'])
+        density_threshold = (max_d+min_d) / 2
+
+
+        for vertex in p['faces']:
+            if density_layer.data[vertex].value < density_threshold :
+                co_layer_density += test_co_b
+            else:
+                co_layer_density += test_co_w
+                
+        print(co_layer_density)
+
+        dcol_layer = mesh.vertex_colors.new(name='density', do_init=False)
+        dcol_data = dcol_layer.data
+        dcol_data.foreach_set('color', co_layer_density)
+
+
+
         
 
     mesh.validate()
