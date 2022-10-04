@@ -1,0 +1,13 @@
+* Download Blender
+* Go into a scripting tab and identify what python version Blender is using
+- newest version of Blender (3.3.0) uses python 3.10.2
+* As mentioned in the original import readme, the official Blender binaries do not include the python headers, this will require a full python installation to be added to wherever the readply extension will be stored.
+- not necessary but can just copy and paste all other files and dirs as well to avoid missing something
+- If you have certain packages you want to add then replace the lib library with your Lib (recommended to at least have the numpy package which can be found in the AppData in either roaming or local under the site-packages dir)
+- if importing packages make sure to reference the sandia proxy site 
+https://wiki.sandia.gov/pages/viewpage.action?pageId=325698279#SandiaProxyConfiguration&Troubleshooting-Usingpip, in particular reference the pip import segment of using pip behind the proxy
+ ** python -m pip install --user --proxy http://proxy.sandia.gov:80 --trusted-host pypi.org --trusted-host files.pythonhosted.org  <package>
+- header files are stored in the include folder dir
+
+* continue following the readme file and try to run setup.py with the Blender python executable. Update any Microsoft Visual C++ files if necessary
+

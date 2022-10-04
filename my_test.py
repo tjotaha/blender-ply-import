@@ -70,9 +70,13 @@ except ValueError as e:
 # print("current directory: %r\n" % os.getcwd())
 # fname = 'colored_monkey.ply'
 # path = 'C:\\Users\\vjvalve\\Documents\\blender-ply-import\\test\\'
-fname = 'small_wavelet_1_extra_properties.ply'
-path = 'C:\\Users\\vjvalve\\Documents\\blender-ply-import\\'
-fpath = path+fname
+#fname = 'small_wavelet_1_extra_properties.ply'
+#path = 'C:\\Users\\vjvalve\\Documents\\09326\\blender-ply-import\\'
+
+fname = 'wavelet_for_import_with_added_properties.ply'
+fpath = 'C:\\Users\\vjvalve\\Documents\\09326\\ParaViewImportTesting\\ExtractorOutput\\'
+#fpath = fpath.replace("\\", "\\\\")
+fpath = fpath+fname
 
 if len(args) > 0:
      fname = args[0]
@@ -92,7 +96,7 @@ print(p.keys())
 print('%d vertices, %d faces' % (p['num_vertices'], p['loop_start'].shape[0]))
 print('vertices: {}\n'.format(p['vertices']))
 # print('vertex_colors.shape: {0}\n'.format(p['vertex_colors'].shape))
-print("vertex_colors length: %d" % (len(p['vertex_colors'])))
+#print("vertex_colors length: %d" % (len(p['vertex_colors'])))
 # print_vertex_colors(p)
 
 # print_loop_start(p)
@@ -119,6 +123,9 @@ if in_blender:
     mesh.polygons.add(p['num_faces'])
     mesh.polygons.foreach_set('loop_start', p['loop_start'])
     mesh.polygons.foreach_set('loop_total', p['loop_length'])
+    
+    for key, value in p.items():
+        print("prop: " + key)
 
     if 'vertex_normals' in p:
         mesh.vertices.foreach_set('normal', p['vertex_normals'])
