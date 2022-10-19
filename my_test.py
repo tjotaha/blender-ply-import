@@ -27,17 +27,17 @@ def print_vert_attr(p):
         print("vertex %d" % i)
         print('vertex coord: %d, %d, %d' % (p['vertices'][i*3], p['vertices'][i*3+1], p['vertices'][i*3+2]))
         # print('rgb: %d, %d, %d' % (p['vertex_colors'][i*3] * 255, p['vertex_colors'][i*3+1] * 255, p['vertex_colors'][i*3+2] * 255))
-        try:
-            print('density, temperature, pressure: %.1f, %.1f, %.1f' % (p['density'][i], p['temperature'][i], p['pressure'][i]))
-        except:
-            print('file doesn\'t have density, temperature, or pressure parameters')
+        # try:
+        #     print('density, temperature, pressure: %.1f, %.1f, %.1f' % (p['density'][i], p['temperature'][i], p['pressure'][i]))
+        # except:
+        #     print('file doesn\'t have density, temperature, or pressure parameters')
         
         print("\n")
 
 def print_vertex_colors(p):
     i = 0
     while i < len(p['vertex_colors']):
-        print("rgba: p['vertex_colors'][%d, %d, %d ,%d]: %d, %d, %d, %d\n" % (i, i+1, i+2, i+3,
+        print("rgba: p['vertex_colors'] vertex %d: %d, %d, %d, %d\n" % (p['faces'][i//4],
                                                                               p['vertex_colors'][i] * 255,
                                                                               p['vertex_colors'][i+1] * 255,
                                                                               p['vertex_colors'][i+2] * 255,
@@ -70,13 +70,13 @@ except ValueError as e:
 # print("current directory: %r\n" % os.getcwd())
 # fname = 'colored_monkey.ply'
 # path = 'C:\\Users\\vjvalve\\Documents\\blender-ply-import\\test\\'
-#fname = 'small_wavelet_1_extra_properties.ply'
-#path = 'C:\\Users\\vjvalve\\Documents\\09326\\blender-ply-import\\'
+fname = 'small_wavelet_1_extra_properties.ply'
+path = 'C:\\Users\\vjvalve\\Documents\\09326\\blender-ply-import\\'
 
-fname = 'wavelet_for_import_with_added_properties.ply'
-fpath = 'C:\\Users\\vjvalve\\Documents\\09326\\ParaViewImportTesting\\ExtractorOutput\\'
+#fname = 'wavelet_for_import_with_added_properties.ply'
+#path = 'C:\\Users\\vjvalve\\Documents\\09326\\ParaViewImportTesting\\ExtractorOutput\\'
 #fpath = fpath.replace("\\", "\\\\")
-fpath = fpath+fname
+fpath = path+fname
 
 if len(args) > 0:
      fname = args[0]
@@ -94,20 +94,25 @@ t1 = time.time()
 print(p.keys())
 #print('PLY file read by readply() in %.3fs' % (t1-t0))
 print('%d vertices, %d faces' % (p['num_vertices'], p['loop_start'].shape[0]))
-print('vertices: {}\n'.format(p['vertices']))
+# print('vertices: {}\n'.format(p['vertices']))
 # print('vertex_colors.shape: {0}\n'.format(p['vertex_colors'].shape))
 #print("vertex_colors length: %d" % (len(p['vertex_colors'])))
-# print_vertex_colors(p)
+print_vertex_colors(p)
 
 # print_loop_start(p)
 #
 # print_loop_length(p)
 
-# print_faces(p)
+#print_faces(p)
 
 # print('density: {}\n'.format(p['density']))
 
 #print_vert_attr(p)
+
+normal_props = ["num_vertices", "num_faces", "vertices", "faces", "loop_start", "loop_length", "vertex_colors"]
+
+# for i in range(10):
+
 
 if in_blender:
     # Create a mesh + object using the vertex and face data in the numpy arrays
@@ -124,8 +129,38 @@ if in_blender:
     mesh.polygons.foreach_set('loop_start', p['loop_start'])
     mesh.polygons.foreach_set('loop_total', p['loop_length'])
     
+    
     for key, value in p.items():
-        print("prop: " + key)
+        
+        if key not in normal_props:
+            
+            print("prop: " + key)
+#            print(p[key])
+            prop_layer = mesh.vertex_layers_float.new(name=key)
+            prop_layer.data.foreach_set('value', p[key])
+#            
+            test_co_w = [1.0, 1.0, 1.0, 1.0]
+            test_co_b = [0.0, 0.0, 0.0, 1.0]
+            
+            co_layer_prop = []
+            max_d = max(p[key])
+            min_d = min(p[key])
+            prop_threshold = (max_d+min_d) / 2
+            
+            for vertex in p['faces']:
+                if prop_layer.data[vertex].value < prop_threshold:
+                    co_layer_prop += test_co_b
+                else:
+                    co_layer_prop += test_co_w
+            
+            print("prop: " + key)
+#            print(co_layer_prop)
+            
+            dcol_layer = mesh.vertex_colors.new(name=key, do_init=False)
+            dcol_data = dcol_layer.data
+            dcol_data.foreach_set('color', co_layer_prop)
+        
+        
 
     if 'vertex_normals' in p:
         mesh.vertices.foreach_set('normal', p['vertex_normals'])
@@ -139,30 +174,10 @@ if in_blender:
         uv_layer = mesh.uv_layers.new(name='default')
         uv_layer.data.foreach_set('uv', p['texture_coordinates'])
         
-    if 'density' in p:
-        density_layer = mesh.vertex_layers_float.new(name='density')
-        density_layer.data.foreach_set('value', p['density'])
-
-        test_co_w = [1.0, 1.0, 1.0, 1.0]
-        test_co_b = [0.0, 0.0, 0.0, 1.0]
-
-        co_layer_density = []
-        max_d = max(p['density'])
-        min_d = min(p['density'])
-        density_threshold = (max_d+min_d) / 2
-
-
-        for vertex in p['faces']:
-            if density_layer.data[vertex].value < density_threshold :
-                co_layer_density += test_co_b
-            else:
-                co_layer_density += test_co_w
-                
-        print(co_layer_density)
-
-        dcol_layer = mesh.vertex_colors.new(name='density', do_init=False)
-        dcol_data = dcol_layer.data
-        dcol_data.foreach_set('color', co_layer_density)
+    for key, value in p.items():
+        if key not in normal_props:
+            print("prop: " + key )
+            print(p[key])
 
 
 

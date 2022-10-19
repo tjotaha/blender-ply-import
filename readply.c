@@ -124,9 +124,19 @@ _set_base_object(PyArrayObject *arrobj, void *memory, const char *name)
 // and friends.
 //
 
+/* 
+// vjvalve comment:
+    All these following values and variables are default to the original project file
+    this means that several of the index elements and flags are hard coded and don't
+    allow for much dynamicity. Luckily, most of these values frequently show up in a
+    .ply and because of their typing require unique executions
+*/ 
+// Vertex coordinates (x,y,z) for all vertices in flat 1d array
 static float    *vertices = NULL;
+// Pointer index for location in vertex array
 static int      next_vertex_element_index;
 
+// list of vertices in forming a face (currently expecting triangulated faces)
 static uint32_t *faces = NULL;          // XXX vertex_indices
 static uint32_t *loop_start = NULL;
 static uint32_t *loop_total = NULL;     // XXX rename loop_length
@@ -159,6 +169,8 @@ vertex_cb(p_ply_argument argument)
 static int
 vertex_color_cb(p_ply_argument argument)
 {
+    // printf("index:%d\t vertex_color argument value: %lf\n", next_vertex_color_element_index, ply_get_argument_value(argument));
+    // printf("vertex_scale_factor: %lf\n", vertex_color_scale_factor);
     vertex_colors[next_vertex_color_element_index] = ply_get_argument_value(argument) * vertex_color_scale_factor;
     next_vertex_color_element_index++;
 
@@ -224,6 +236,15 @@ face_cb(p_ply_argument argument)
 // vjvalve: temporary variable and proto functions
 #define VariableName(var) #var
 
+/* -----------------------------------------------------------------------------
+ * Struct for storing values of custom property for each vertex in a .ply
+ *
+ * name: property name 
+ * values: full list of value associated for each vertex
+ * next_value_index: index pointer to value of vertex
+ * next: pointer to the next custom .ply property 
+ *
+ * -------------------------------------------------------------------------- */
 typedef struct ply_property{
     char* name;
     double* values;
@@ -231,6 +252,15 @@ typedef struct ply_property{
     struct ply_property* next;
 }ply_property;
 
+/* -----------------------------------------------------------------------------
+ * Array list shell for all the custom properties found in a .ply
+ *
+ * start: pointer to the first ply_property in list 
+ * end: pointer to the last ply_property in list
+ * num_vertices: keeps track of number of vertices the .ply file details
+ * prop_count: number of ply_properties in list
+ *
+ * -------------------------------------------------------------------------- */
 typedef struct ply_property_array{
     struct ply_property* start;
     struct ply_property* end;
@@ -238,9 +268,19 @@ typedef struct ply_property_array{
     unsigned int prop_count;
 }ply_property_array;
 
-const char* key_lookup[] = {"density", "temperature", "pressure"};
+// Due to how original code is set up, we keep track of the keys that are already being processed
+// by default so that the code doesn't register them as custom properties
+const char* key_lookup[] = {"x", "y", "z", "nx", "ny", "nz", "u", "v", "s", "t", "red", "green", "blue"};
 struct ply_property_array ply_p_array;
 
+/* -------------------------------------------------------------------------------------------
+ * init_ply_property_array: initializes array
+ * 
+ * ply_p_array: array that is getting initialized
+ * num_vertices: number of vertices that exist in .ply (which will allow for keeping track
+ * of size of values array in the ply_property struct)
+ * 
+ * ---------------------------------------------------------------------------------------- */
 static int
 init_ply_property_array(struct ply_property_array* ply_p_array, unsigned int num_vertices){
     ply_p_array->start = NULL;
@@ -251,6 +291,14 @@ init_ply_property_array(struct ply_property_array* ply_p_array, unsigned int num
     return 1;
 }
 
+/* ------------------------------------------------------------------------------------------
+ * check_for_existing_property: check to see if the proposed key already has an existing property
+ * of the same name in the list
+ * 
+ * ply_p_array: array checked to see for existing property
+ * key: string name of the property
+ * 
+ * ----------------------------------------------------------------------------------------- */
 static int
 check_for_existing_property(struct ply_property_array* ply_p_array, const char* key){
     if(ply_p_array->start != NULL){
@@ -261,12 +309,24 @@ check_for_existing_property(struct ply_property_array* ply_p_array, const char* 
             ply_p = ply_p->next;
         }
     }
+    return 0;
 }
 
+/* -------------------------------------------------------------------------------------------
+ * append_ply_property: initializes and appends new ply_property struct to list  
+ *
+ * ply_p_array: array list
+ * name: string for new ply_property 
+*/
 static int
 append_ply_property(struct ply_property_array* ply_p_array, const char* name){
-    if(check_for_existing_property(ply_p_array, name));
+    
+    if(check_for_existing_property(ply_p_array, name)) return 0;
+
+    // when initializing the struct first allocate memory for the struct based off its size
     struct ply_property* ply_p = malloc(sizeof(ply_property));
+
+    // then allocate memory for any other inner pointer type
     ply_p->name = malloc(strlen(name) + 1);
     strcpy(ply_p->name, name);
 
@@ -274,6 +334,7 @@ append_ply_property(struct ply_property_array* ply_p_array, const char* name){
     ply_p->next_value_index = 0;
     ply_p->next = NULL;
 
+    // if added ply_property is the first of the list
     if(ply_p_array->start == NULL){
         ply_p_array->start = ply_p;
         ply_p_array->end = ply_p;
@@ -282,21 +343,36 @@ append_ply_property(struct ply_property_array* ply_p_array, const char* name){
         ply_p_array->end->next = ply_p;
         ply_p_array->end = ply_p;
     }
+
+    // increment the index of number of properties in array
     ply_p_array->prop_count++;
 
     return 1;
 }
 
+/* ----------------------------------------------------------------------
+ * get_ply_property: returns the ply_property specified by the key passed
+ * 
+ * ply_p_array: property array list
+ * key: name of property to be found
+ * 
+ * ------------------------------------------------------------------- */
 static ply_property*
-get_ply_property(struct ply_property_array* ply_p_array, char* name){
+get_ply_property(struct ply_property_array* ply_p_array, char* key){
 //    int size = ply_p_array->num_vertices;
     ply_property* ply_p = ply_p_array->start;
     while(ply_p != NULL){
-        if(!strcmp(ply_p->name, name)) return ply_p;
+        if(!strcmp(ply_p->name, key)) return ply_p;
         ply_p = ply_p->next;
     }
+    return NULL;
 }
 
+/* ---------------------------------------------------------------------
+ * free_ply_property_array: frees all allocated memory of the array
+ * 
+ * ply_p_array: Array list to be freed
+ * ------------------------------------------------------------------ */
 static int
 free_ply_property_array(struct ply_property_array* ply_p_array){
     if(ply_p_array != NULL){
@@ -304,17 +380,25 @@ free_ply_property_array(struct ply_property_array* ply_p_array){
         struct ply_property* ply_p_temp = NULL;
 
         while(ply_p != NULL){
-            free(ply_p->values);
+            // free(ply_p->values);
             ply_p_temp = ply_p;
             ply_p = ply_p->next;
             free(ply_p_temp);
         }
         ply_p_array->start = NULL;
         ply_p_array->end = NULL;
+
+        free(ply_p_array);
     }
     return 1;
 }
 
+/* ----------------------------------------------------------------------------
+ * print_ply_property: prints out the first "size" vertex values of the property
+ * 
+ * size: number of vertices to print up to (range(size))
+ * 
+ * ------------------------------------------------------------------------- */
 static void
 print_ply_property(struct ply_property* ply_p, unsigned int size){
     printf("name = %s\n", ply_p->name);
@@ -328,9 +412,14 @@ print_ply_property(struct ply_property* ply_p, unsigned int size){
 //            else printf("\n");
         }
     }
-
 }
 
+/* -------------------------------------------------------------------------
+ * print_ply_property_array: prints out all ply_property data in array
+ * 
+ * ply_p_array: array to be printed
+ * 
+ * ---------------------------------------------------------------------- */
 static void
 print_ply_property_array(struct ply_property_array* ply_p_array){
     struct ply_property* ply_p = ply_p_array->start;
@@ -343,24 +432,20 @@ print_ply_property_array(struct ply_property_array* ply_p_array){
     }
 
     while(ply_p != NULL){
-//        print_ply_property(ply_p, ply_p_array->num_vertices);
-//       printf("name = %s\n", ply_p->name);
-//       int size = ply_p_array->num_vertices;
-//       int i;
-//       printf("values = ");
-//       for(i=0; i<size;i++){
-//        printf("%lf", ply_p->values[i]);
-//        if(i < size-1) printf(", ");
-//        else printf("\n");
-//       }
-
+       print_ply_property(ply_p, ply_p_array->num_vertices);
        printf("\n");
+
        ply_p = ply_p->next;
     }
     printf("**Ending print of ply_property_array**\n\n");
 }
 
-
+/* ------------------------------------------------------------------------------
+ * fill_values: fills all ply_properties in array with default values for testing
+ *
+ * ply_p_array: array to be filled
+ * 
+ * --------------------------------------------------------------------------- */
 static int
 fill_values(struct ply_property_array* ply_p_array){
     ply_property* ply_p = ply_p_array->start;
@@ -381,18 +466,40 @@ fill_values(struct ply_property_array* ply_p_array){
     return 1;
 }
 
+/* ----------------------------------------------------------------------
+ * To avoid interfering with the already established code and to avoid recounting 
+ * properties that have already been accounted for (i.e: x, y, z, nx, ny, nz, u, v, s, t)
+ * we loop through a list to confirm that the property is allowed to be processed
+ * Returns 1 if successful, 0 otherwise
+ * ---------------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------------------------------
+ * in_key_lookup: checks to see proposed name is an already accounted for property
+ * 
+ * name: string that is being checked
+ * 
+ * -------------------------------------------------------------------------------------*/
 static int
 in_key_lookup(const char* name){
+    // return 1;
     int i;
+    printf("prop found: %s\n", name);
     for(i=0; key_lookup[i]!= '\0'; i++){
         if(!strcmp(name, key_lookup[i])){
-            printf("found a string comparison with: %s\n", key_lookup[i]);
-            return 1;
+            // printf("found a string comparison with: %s\n", key_lookup[i]);
+            printf("prop %s matches up with already accounted for %s\n", name, key_lookup[i]);
+            return 0;
         }
     }
-    return 0;
+    return 1;
 }
 
+/* ------------------------------------------------------------------------------------------
+ * property_double_cb: callback function where a value will be assigned to the vertex index 
+ * of the property struct
+ * 
+ * argument: argument from .ply that contains the data associated with the property name
+ * --------------------------------------------------------------------------------------- */
 static int
 property_double_cb(p_ply_argument argument)
 {
@@ -400,7 +507,10 @@ property_double_cb(p_ply_argument argument)
 //    ply_property** ply_p_star = &ply_p;
     int rc = ply_get_argument_user_data(argument, (void**) &ply_p, NULL);
 //    int rc = ply_get_argument_user_data(argument, (void**) ply_p_star, NULL);
+    // printf("index: %d\n", ply_p->next_value_index);
+    // printf("output value: %lf\n", ply_get_argument_value(argument));
     ply_p->values[ply_p->next_value_index] = ply_get_argument_value(argument);
+    // printf("value after assignment: %lf\n", ply_p->values[ply_p->next_value_index]);
 //    printf("callback value %f\tindex: %d\n", ply_p->values[ply_p->next_value_index], ply_p->next_value_index);
     ply_p->next_value_index++;
     return rc;
@@ -547,9 +657,10 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             ply_set_read_cb(ply, "vertex", "v", vertex_texcoord_cb, NULL, 1);
         }
         else if(in_key_lookup(name)){
+            // If a property came up that is unaccounted for then add it to the ply_property_array
             append_ply_property(&ply_p_array, name);
-//            printf("%s in key_lookup\n", name);
-//            printf("last value in array: %s\n", ply_p_array.end->name);
+        //    printf("%s in key_lookup\n", name);
+        //    printf("last value in array: %s\n", ply_p_array.end->name);
 
 //            printf("type testing: %d\n", ply_p_array.end);
             ply_set_read_cb(ply, "vertex", name, property_double_cb, ply_p_array.end, 0);
@@ -702,6 +813,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             // Convert list of per-vertex RGB colors to Blender-style
             // per-vertex-per-face-loop RGBA colors
 
+            // printf("in vertex_values_per_loop, line %d\n", __LINE__);
             const int n = 4*next_face_element_index;
             float   *vcol2 = (float*) malloc(n*sizeof(float));
             float   *vcol2color = vcol2;
@@ -711,6 +823,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             for (int fi = 0; fi < next_face_element_index; fi++)
             {
                 vi = faces[fi];
+
 
                 col = vertex_colors + 3*vi;
 
@@ -730,7 +843,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
         }
         else
         {
-            printf("vertex values per loop false\n");
+            // printf("vertex values per loop false\n");
 
             // Per-vertex RGB colors
             PyArrayObject *arr = (PyArrayObject*) PyArray_SimpleNewFromData(1, np_vertices_dims, NPY_FLOAT, (void*) vertex_colors);
@@ -791,7 +904,7 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
 
     if (ply_p_array.start != NULL)
     {
-        printf("In line %d\n", __LINE__);
+        // printf("In line %d\n", __LINE__);
         ply_property* ply_p = ply_p_array.start;
 //        print_ply_property_array(&ply_p_array);
 
@@ -803,7 +916,9 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
             const int n = ply_p_array.num_vertices;
             npy_intp    dims[1] = { n };
 //            print_ply_property(ply_p, n);
-            PyObject* arr_temp = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, ply_p->values);
+            PyArrayObject* arr_temp = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, ply_p->values);
+            
+            // printf("ply_p values: %lf\n", ply_p->values[0]);
 
 //            if(testflag){
 //                FILE *fp;
@@ -813,15 +928,21 @@ readply(PyObject* self, PyObject* args, PyObject *kwds)
 //                testflag = 0;
 //            }
 
-//            printf("[0]: %lf\n", (float)arr_temp->data[0]);
+
             _set_base_object(arr_temp, ply_p->values, ply_p->name);
+            // _MyDeallocObject * temp_arr_dealloc = ((_MyDeallocObject *)(PyArray_BASE(arr_temp)));
+            // double * temp_double_arr = (double *)(temp_arr_dealloc->memory);
+            // printf("[0]: %lf\n", temp_double_arr[0]);
+            // printf("arr_temp->data[0]: %lf\n", (double)(temp_arr_dealloc->memory[0]);
             np_prop = (PyObject*) arr_temp;
             PyDict_SetItemString(result, ply_p->name, np_prop);
 
             ply_p = ply_p->next;
 
         }
-        free_ply_property_array(&ply_p_array);
+        /* This code is uncommented because python references this memory location when accessing
+        its dictionary values*/
+        // free_ply_property_array(&ply_p_array);
     }
 
     // Return the stuff!
