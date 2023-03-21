@@ -4,7 +4,6 @@
 # blender -P mesh_readply.py -- file.ply
 #
 import sys, os, time
-
 try:
     import bpy, bmesh
     in_blender = True
@@ -20,6 +19,10 @@ except ImportError:
     scriptdir = os.path.split(os.path.abspath(__file__))[0]    
     sys.path.insert(0, scriptdir)
     import readply
+    
+def testing_function():
+    print("testing_function called")
+    
 
 
 def print_vert_attr(p):
@@ -34,7 +37,7 @@ def print_vert_attr(p):
         
         print("\n")
 
-def print_vertex_colors(p):
+def print_vertex_colors(p, num: int = -1):
     i = 0
     while i < len(p['vertex_colors']):
         print("rgba: p['vertex_colors'] vertex %d: %d, %d, %d, %d\n" % (p['faces'][i//4],
@@ -43,6 +46,18 @@ def print_vertex_colors(p):
                                                                               p['vertex_colors'][i+2] * 255,
                                                                               p['vertex_colors'][i+3]))
         i += 4
+        
+def print_col_attribute(attr, num: int = -1):
+    i = 0
+    
+    if num > 0:
+        while i < num:
+            print("[%d] rgba: %f %f %f %f" % (i, attr[i].color[0], attr[i].color[1], attr[i].color[2], attr[i].color[3]))
+            i +=1
+    else:
+        for i in range(len(attr)):
+            print("[%d] rgba: %f %f %f %f" % (i, attr[i].color[0], attr[i].color[1], attr[i].color[2], attr[i].color[3]))
+            
 
 def print_loop_start(p):
     for i in range(len(p['loop_start'])):
@@ -55,6 +70,32 @@ def print_loop_length(p):
 def print_faces(p):
     for i in range(len(p['faces'])):
         print("faces[%d]: %d\n" % (i, p['faces'][i]))
+
+def print_property(p, prop: str, num: int = -1, first_last: bool = False):
+    
+    if num > 0:
+        for i in range(num):
+            print("p[%s][%d]: %.5f" % (prop, i, p[prop][i]))
+
+        prop_len = len(p[prop])
+
+        if first_last and prop_len > num*2:
+            for i in range(prop_len-num, prop_len):
+                print("p[%s][%d]: %.5f" % (prop, i, p[prop][i]))
+    else:
+        print("p[%s]: " % (prop))
+        print(p[prop])
+# def print_property(p, prop: str, num: int):
+#     print_property(p, prop, num, False)
+
+# def print_property(p, prop:str):
+#     print_property(p, prop, len(p[prop]))
+
+def unlerp(min, max, val):
+    range = max - min
+    diff = val - min
+    return diff/range
+
 
 print('Using readply module: %s' % readply.__file__)
 
@@ -70,12 +111,19 @@ except ValueError as e:
 # print("current directory: %r\n" % os.getcwd())
 # fname = 'colored_monkey.ply'
 # path = 'C:\\Users\\vjvalve\\Documents\\blender-ply-import\\test\\'
-fname = 'small_wavelet_1_extra_properties.ply'
-path = 'C:\\Users\\vjvalve\\Documents\\09326\\blender-ply-import\\'
+#fname = 'small_wavelet_1_extra_properties.ply'
+#path = 'C:\\Users\\vjvalve\\Documents\\09326\\blender-ply-import\\'
 
 #fname = 'wavelet_for_import_with_added_properties.ply'
 #path = 'C:\\Users\\vjvalve\\Documents\\09326\\ParaViewImportTesting\\ExtractorOutput\\'
 #fpath = fpath.replace("\\", "\\\\")
+
+#fname = 'xyslice_minz_1_0028_0_0_with_added_properties.ply'
+fname= 'sparc-wall_with_added_properties.ply'
+#fname='foo_additional_prop.ply'
+#path = 'C:\\Users\\vjvalve\\Documents\\09326\\'
+path = 'C:\\Users\\vjvalve\\Documents\\09326\\data_for_victor_2022Nov02\\surface_data\\ExtractorOutput\\'
+
 fpath = path+fname
 
 if len(args) > 0:
@@ -97,7 +145,7 @@ print('%d vertices, %d faces' % (p['num_vertices'], p['loop_start'].shape[0]))
 # print('vertices: {}\n'.format(p['vertices']))
 # print('vertex_colors.shape: {0}\n'.format(p['vertex_colors'].shape))
 #print("vertex_colors length: %d" % (len(p['vertex_colors'])))
-print_vertex_colors(p)
+# print_vertex_colors(p)
 
 # print_loop_start(p)
 #
@@ -112,6 +160,11 @@ print_vertex_colors(p)
 normal_props = ["num_vertices", "num_faces", "vertices", "faces", "loop_start", "loop_length", "vertex_colors"]
 
 # for i in range(10):
+for key, value in p.items():
+    if key not in normal_props:
+        print("prop: " + key )
+#        print_property(p, key, 10, True)
+        # print(p[key])
 
 
 if in_blender:
@@ -139,26 +192,64 @@ if in_blender:
             prop_layer = mesh.vertex_layers_float.new(name=key)
             prop_layer.data.foreach_set('value', p[key])
 #            
-            test_co_w = [1.0, 1.0, 1.0, 1.0]
-            test_co_b = [0.0, 0.0, 0.0, 1.0]
+            # test_co_w = [1.0, 1.0, 1.0, 1.0]
+            # test_co_b = [0.0, 0.0, 0.0, 1.0]
             
             co_layer_prop = []
             max_d = max(p[key])
             min_d = min(p[key])
-            prop_threshold = (max_d+min_d) / 2
+            # prop_threshold = (max_d+min_d) / 2
             
+            # prop_avg = sum(p[key]) / len(p[key])
+            
+#            print("max_d: %f" % (max_d))
+#            print("min_d: %f" % (min_d))
+            # print("prop_threshold: %f" % (prop_threshold))
+            # print("prop_avg: %f" %(prop_avg))
+            
+            i = 0
+            j = 0
+            k = 0
+            
+            if len(p[key]) < 10:
+                print("key: " + key)
+                print(*p[key])
             for vertex in p['faces']:
-                if prop_layer.data[vertex].value < prop_threshold:
-                    co_layer_prop += test_co_b
-                else:
-                    co_layer_prop += test_co_w
+                
+                prop_val = prop_layer.data[vertex].value
+                
+                unlerp_val = unlerp(min=min_d, max=max_d, val=prop_val)
+                
+                
+                unlerp_color = [unlerp_val, unlerp_val, unlerp_val, 1.0]
+                
+                co_layer_prop += unlerp_color
+                
+                
+#                print("vertex: %d" % vertex)
+#                
+#                print("unlerp_val: %f" % unlerp_val)
+#                
+#                print(unlerp_color)
+                
+#                print(co_layer_prop)
+                
+                    
+
             
-            print("prop: " + key)
+#            print("co_layer_prop: %d" % (len(co_layer_prop)))
 #            print(co_layer_prop)
             
-            dcol_layer = mesh.vertex_colors.new(name=key, do_init=False)
-            dcol_data = dcol_layer.data
-            dcol_data.foreach_set('color', co_layer_prop)
+#            dcol_layer = mesh.vertex_colors.new()
+#            dcol_data = dcol_layer.data
+#            dcol_data.foreach_set('color', co_layer_prop)
+#            pcol_layer = mesh.color_attributes.new(name=key, type="BYTE_COLOR", domain="POINT")
+            pcol_layer = mesh.color_attributes.new(name=key, type="BYTE_COLOR", domain="CORNER")
+            pcol_data = pcol_layer.data
+            pcol_data.foreach_set("color", co_layer_prop)
+            
+#            seq_ret = pcol
+#            print_col_attribute(pcol_data)
         
         
 
@@ -174,10 +265,6 @@ if in_blender:
         uv_layer = mesh.uv_layers.new(name='default')
         uv_layer.data.foreach_set('uv', p['texture_coordinates'])
         
-    for key, value in p.items():
-        if key not in normal_props:
-            print("prop: " + key )
-            print(p[key])
 
 
 

@@ -122,6 +122,46 @@ $ python setup.py install
 - Texture coordinates may be stored in s+t or u+v vertex fields, depending
   on what property names the PLY file being read uses
 
+### *Additions*
+- Can now also import .ply file that has additonal vertex attributes associated with them
+  ```
+  ply
+  format ascii 1.0
+  comment VTK generated PLY File
+  obj_info vtkPolyData points and polygons: vtk4.0
+  element vertex 17023
+  property float x
+  property float y
+  property float z
+  property float edge-j
+  property float edge-line-height
+  property float edge-mach
+  property float edge-pressure
+  property float edge-speed
+  property float edge-velocity:0
+  property float edge-velocity:1
+  property float edge-velocity:2
+  property float l-or-t
+  property float momentum-thickness
+  property float pressure
+  property float re_theta
+  property float recovery-enthalpy
+  property float shock-j
+  property float shock-line-height
+  property float wall-c_f
+  property float wall-c_h
+  property float wall-c_p
+  property float wall-friction-velocity
+  property float wall-heat-flux
+  property float wall-tau-mag
+  property float wall-y_plus
+  property float Points:0
+  property float Points:1
+  property float Points:2
+  ```
+- Values will be stored both as part of the object's vertex layers with the raw data and as vertex color attributes that take the max and min of each property and assign a lerped interpolation value in black in white using RGBA color space ([0, 0, 0, 1] = black, [1, 1, 1, 1] = white)
+  
+
 ## Bugs
 
 - The module is currently not usable as a drop-in replacement of the
@@ -136,6 +176,11 @@ Paul Melis (paul.melis@surfsara.nl), SURFsara Visualization group
 The files under the `rply/` directory are a copy of the RPly 1.1.4 
 source distribution (see http://w3.impa.br/~diego/software/rply/).
 
+### Additions
+
+Victor Valverde (vjvalve@sandia.gov), ORG 02491
+
+
 ## License
 
 See the `LICENSE` file in the root directory of this distribution,
@@ -143,3 +188,54 @@ which applies to all files except the ones in the `rply/` directory.
 
 See `rply/LICENSE` for the the license of the RPly sources.
 
+---
+
+# paraview_ply_exporter - python code to export out a paraview model with all the additional vertex properties
+
+Paraview's .ply export is currently broken in so far that it can't properly export out a .ply file with all the vertex attributes associated with it. This script is a command line executable that uses Paraview's pvbatch.exe to export the file as a .ply along with the additional vertex properties as CSVs. If the merge flag is marked it will then merge a .ply file and the vertex attributes into a single new .ply file.
+
+The script does require the use of pvbatch so that it has access to Paraviews local libraries that allows for filter application and extractors.
+
+## Example usage:
+```
+C:\Program/ Files\ParaView/ 5.10.1\bin/pvbatch.exe paraview_ply_exporter.py -f C:\Users\user\Documents surface_data.exo.16.00 -e -m -o default_reflect
+```
+
+## Notes:
+- Can use `paraview_ply_exporter` to export out .ply file and csv extractors using only the -e flag.
+  - Files will be exported into the same directory as the location of the paraview file specified under an `ExtractorOutput` folder
+- Can use `paraview_ply_exporter` to only merge the files if the -m flag is marked but does require the files to be merged to be in an `ExtractorOutput` folder
+  - Also, you must use the name of the original file being merged
+  - > Example: 
+    ```
+    C:\Program/ Files\ParaView/ 5.10.1\bin/pvbatch.exe paraview_ply_exporter.py -f C:\Users\user\Documents\surface_data.exo.16.00 -m
+    ```
+    > Requires `surface_data.ply`, `surface_data_celldata.csv`, and `surface_data_pointdata.csv` to exist in `ExtractorOutput` (`ExtractorOutput` must be in the same directory as `surface_data.exo.16.00` )
+
+## Author
+
+Victor Valverde (vjvalve@sandia.gov), ORG 02491
+
+---
+
+# HighImpactRenderingAddOn - Blender addon for importing a .ply file with multiple vertex properties using modified `readply.c` script 
+
+The addon will create a `HighImpactRendering` panel located on the VIEW_3D viewport under the UI region_type. The user can either type out the file path of the .ply file they'd like to import or click the button with next to the text space to search for the file. Do **NOT** use the standard Blender importer found under File-> Import -> Stanford (.ply); this uses Blender's native importer which is much slower and doesn't apply the vertex properties as vertex attributes. Once imported vertex properties are applied as vertex_layers of the object and vertex color attributes along a lerped black to white scale (original values are maintained in the object's vertex_layers but each vertex value is linearly interpolated between the min [black] and max [white] value of the property).
+
+## Import
+* Open Blender preferences under `Edit->Preferences->Add-ons` and click the install button. Locate `HighImpactRenderingAddOn.zip` and install the add-on
+
+
+
+## Notes
+- User can observe the vertex color attributes of an object while in the solid rendering mode (default) by going to the viewport shading panel (located in the top right of the VIEW_3D viewport) and setting the color type to `attribute` ![image info](./readme_images/ColorTypeToAttributes_Ref.png)
+  - User can then obeserve the desired property by selecting the attribute in the color attributes panel of the object's `object data properties` ![image info](./readme_images/SelectAttributePreview_Ref.png)
+- User can then use color attribute data to apply to shader in whichever way they want.
+  - **NOTE**: this only works in cycles or eevee rendering engine.
+  - Example: ![image info](./readme_images/AttributeMaterialExample_Ref.png)
+  - Separating the HSV of the color isn't necessary but the value does effect the emission strength of the material so that is an additonal feature that can be tweaked to floor or ceil all the colors elected.
+  - Multiply node is another parameter to tweak the emission strength of the material.
+
+## Author
+
+Victor Valverde (vjvalve@sandia.gov), ORG 02491
