@@ -76,6 +76,36 @@ Note: the official Blender binaries do not include the Python headers.
 So you still need a full Python installation somewhere to build the 
 `readply` extension.
 
+#### Install Python headers and numpy for Blender on Linux
+
+Build Open SSL 1.1.1 if not available on system (download openssl-1.1.1t.tar.gz)
+
+```
+% cd openssl-1.1.1t/
+% ./config shared --prefix=<install prefix>/openssl-1.1.1t-install
+% make ; make install
+```
+
+Build Python 3.10.10 (for Blender 3.4.1)
+
+```
+% ./configure --with-openssl=<install prefix>/openssl-1.1.1t-install/ --with-openssl-rpath=<install prefix>/openssl-1.1.1t-install/lib/ --prefix=<install prefix>/Python-3.10.10-install
+```
+
+Copy Python 3.10.10 install directory into Blender Python.
+
+```
+% cd blender-3.4.1-linux-x64/3.4/
+% mv python/ python.orig
+% cp -r <install prefix>/Python-3.10.10-install/ python/
+```
+
+Install numpy with pip3
+
+```
+% ./blender-3.4.1-linux-x64/3.4/python/bin/pip3 install numpy
+```
+
 Run the `setup.py` script with Blender's copy of
 the Python interpreter. There should be a `python3.7m` executable in
 your Blender directory. For example, for 2.81 on Linux the Python binary
